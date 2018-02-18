@@ -1,0 +1,16 @@
+config FS_FFS
+    bool "Enable UFS/FFS filesystem support"
+    help
+    This provides support for reading images from the ufs/ffsv1 filesystem.
+    ffs is a widely used general-purpose filesystem for NetBSD.
+    You can also enable CMD_UFS to get access to UFS commands.
+
+choice
+    depends on FS_FFS
+    prompt "Choose your UFS/FFS version"
+config FS_FFSv1
+	bool "Enable UFS/FFSv1"
+config FS_FFSv2
+    bool "Enable UFS2/FFSv2"
+endchoice
+
