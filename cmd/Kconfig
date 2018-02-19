@@ -1466,6 +1466,11 @@ config CMD_ZFS
 
 	  See doc/README.zfs for more details.
 
+config CMD_UFS
+	bool "ffs command support"
+	help
+	  Enables ffs FS command
+
 endmenu
 
 menu "Debug commands"

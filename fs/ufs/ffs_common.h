@@ -94,6 +94,17 @@ struct ufs2_dinode {
 #define SBLOCK_UFS2    65536
 #define SBLOCK_PIGGY  262144
 #define SBLOCKSIZE      8192
+
+
+#ifndef SEEK_SET
+#define	SEEK_SET	0	/* set file offset to offset */
+#endif
+#ifndef SEEK_CUR
+#define	SEEK_CUR	1	/* set file offset to current plus offset */
+#endif
+#ifndef SEEK_END
+#define	SEEK_END	2	/* set file offset to EOF plus offset */
+#endif
 /*
  * NB: Do not, under any circumstances, look for an ffsv1 filesystem at
  * SBLOCK_UFS2.  Doing so will find the wrong superblock for filesystems

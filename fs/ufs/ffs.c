@@ -11,12 +11,33 @@
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
+#include <linux/stat.h>
 #include <ufs/ufs.h>
 
 #include "ffs_common.h"
 
 struct open_file *gFile = NULL;
 
+off_t
+ffs_seek(struct open_file *f, off_t offset, int where)
+{
+    struct file *fp = (struct file *)f->f_fsdata;
+ 
+    switch (where) {
+	case SEEK_SET:
+	    fp->f_seekp = offset;
+	    break;
+	case SEEK_CUR:
+	    fp->f_seekp += offset;
+	    break;
+	case SEEK_END:
+	    fp->f_seekp = fp->f_di.di_size - offset;
+	    break;
+	default:
+	    return -1;
+    }
+    return fp->f_seekp;
+}
 int ffs_close(struct open_file *f)
 {
     struct file *fp = (struct file *)f->f_fsdata;
@@ -356,6 +377,19 @@ out:
     return rc;
 }
 
+int
+ffs_stat(struct open_file *f, struct stat *sb)
+{
+    struct file *fp = (struct file *)f->f_fsdata;
+    
+    /* only important stuff */
+    memset(sb, 0, sizeof *sb);
+    sb->st_mode = fp->f_di.di_mode;
+    sb->st_uid = fp->f_di.di_uid;
+    sb->st_gid = fp->f_di.di_gid;
+    sb->st_size = fp->f_di.di_size;
+    return 0;
+}
 
 
 
@@ -363,6 +397,21 @@ out:
  * wrappers for fstype_info
  *
  */
+int ufs_ls(const char *pattern)
+{
+   ffs_ls(gFile, pattern);
+   return 0; 
+}
+
+int ufs_size(const char *filename, loff_t *size)
+{
+    struct stat st;
+
+    ffs_stat(gFile, &st);
+
+    *size = st.st_size;
+    return 0;
+}
 
 int ufs_read(const char *filename, void *buf, loff_t offset, loff_t len, loff_t *len_read)
 {
@@ -372,17 +421,14 @@ int ufs_read(const char *filename, void *buf, loff_t offset, loff_t len, loff_t 
     error = ffs_open(filename, gFile);
     if (!error)
     {
+	if (offset != -1)
+	    ffs_seek(gFile, offset, SEEK_SET);
+
         error = ffs_read(gFile, buf, len, &sz);
         debug("ffs_read return with %d, read byte size: %d", error, (int)sz);
     }
 
     return error;
-}
-
-int ufs_ls(const char *pattern)
-{
-   ffs_ls(gFile, pattern);
-   return 0; 
 }
 
 void ufs_close(void)
