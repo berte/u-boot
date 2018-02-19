@@ -1469,7 +1469,7 @@ config CMD_ZFS
 config CMD_UFS
 	bool "ffs command support"
 	help
-	  Enables ffs FS command
+	  This provides commands for accessing a FFSv1/FFSv2 filesystem.
 
 endmenu
 

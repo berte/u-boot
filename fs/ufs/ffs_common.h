@@ -1,8 +1,66 @@
-/*
+/*-
+ * Copyright (c) 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * The Mach Operating System project at Carnegie-Mellon University.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  *
+ * Copyright (c) 1990, 1991 Carnegie Mellon University
+ * All Rights Reserved.
  *
+ * Author: David Golub
  *
+ * Permission to use, copy, modify and distribute this software and its
+ * documentation is hereby granted, provided that both the copyright
+ * notice and this permission notice appear in all copies of the
+ * software, derivative works or modified versions, and any portions
+ * thereof, and that both notices appear in supporting documentation.
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
+ * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
+ *
+ * Carnegie Mellon requests users of this software to return to
+ *
+ *  Software Distribution Coordinator  or  Software.Distribution (at) CS.CMU.EDU
+ *  School of Computer Science
+ *  Carnegie Mellon University
+ *  Pittsburgh PA 15213-3890
+ *
+ * any improvements or extensions that they make and grant Carnegie the
+ * rights to redistribute these changes.
+ *
+ * Stand-alone file reading package for UFS and LFS filesystems.
+ *
+ * UFS/FFS filesystem ported to u-boot by
+ * berte <behzaterte at yandex.com>
+ *
+ * SPDX-License-Identifier:>GPL-2.0+
  */
 
 #ifndef __FFS_COMMON_H__
@@ -10,15 +68,15 @@
 
 #include "fs.h"
 
-#ifdef CONFIG_FS_FFSv1
-#define LIBSA_FFSv1
-
 #define UFS_NXADDR 2
 #define UFS_NDADDR 12      /* Direct addresses in inode. */
 #define UFS_NIADDR 3       /* Indirect addresses in inode. */
 
 #define ufs_dinode  ufs1_dinode
 #define indp_t      int32_t
+
+//#define ufs_dinode  ufs2_dinode
+//#define indp_t      int64_t
 
 struct ufs1_dinode {
     uint16_t    di_mode;    /*   0: IFMT, permissions; see below. */
@@ -40,16 +98,6 @@ struct ufs1_dinode {
     uint32_t    di_gid;     /* 116: File group. */
     uint64_t    di_modrev;  /* 120: i_modrev for NFSv4 */
 };
-#elif CONFIG_FS_FFSv2
-
-#define LIBSA_FFSv2
-
-#define UFS_NXADDR 2
-#define UFS_NDADDR 12      /* Direct addresses in inode. */
-#define UFS_NIADDR 3       /* Indirect addresses in inode. */
-
-#define ufs_dinode  ufs2_dinode
-#define indp_t      int64_t
 
 struct ufs2_dinode {
     uint16_t    di_mode;    /*   0: IFMT, permissions; see below. */
@@ -78,8 +126,6 @@ struct ufs2_dinode {
     int64_t     di_spare[2];    /* 240: Reserved; currently unused */
 };
 
-#endif
-
 
 #define FS_MAGIC        0x070162/*LFS_MAGIC*/
 #define SBLOCKSIZE      8192/*LFS_SBPAD*/
@@ -94,7 +140,7 @@ struct ufs2_dinode {
 #define SBLOCK_UFS2    65536
 #define SBLOCK_PIGGY  262144
 #define SBLOCKSIZE      8192
-
+#define DEV_BSIZE   512
 
 #ifndef SEEK_SET
 #define	SEEK_SET	0	/* set file offset to offset */
@@ -235,14 +281,11 @@ struct file {
      uint    f_nishift;  /* for blocks in indirect block */
      indp_t  f_ind_cache_block;
      indp_t  f_ind_cache[IND_CACHE_SZ];
- 
+
      char    *f_buf;     /* buffer for data block */
      size_t  f_buf_size; /* size of data block */
      daddr_t f_buf_blkno;    /* block number of data block */
 };
- 
-
-
 
 struct open_file {
     int     f_flags;    /* see F_* below */

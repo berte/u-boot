@@ -15,6 +15,7 @@
 #include <sandboxfs.h>
 #include <ubifs_uboot.h>
 #include <btrfs.h>
+#include <ufs/ufs.h>
 #include <asm/io.h>
 #include <div64.h>
 #include <linux/math64.h>
@@ -233,6 +234,26 @@ static struct fstype_info fstypes[] = {
 		.read = btrfs_read,
 		.write = fs_write_unsupported,
 		.uuid = btrfs_uuid,
+		.opendir = fs_opendir_unsupported,
+	},
+#endif
+#ifdef CONFIG_FS_UFS
+	{
+		.fstype = FS_TYPE_UFS,
+		.name = "ufs",
+		.null_dev_desc_ok = false,
+		.probe = fs_probe_unsupported,
+		.close = ufs_close,
+		.ls = ufs_ls,
+		.exists = ufs_exists,
+		.size = ufs_size,
+		.read = ufs_read,
+#ifdef CONFIG_FS_UFS_WRITE
+		.write = ufs_write,
+#else
+        .write = fs_write_unsupported,
+#endif
+		.uuid = fs_uuid_unsupported,
 		.opendir = fs_opendir_unsupported,
 	},
 #endif

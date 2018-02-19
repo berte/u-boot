@@ -21,7 +21,7 @@ obj-$(CONFIG_FS_JFFS2) += jffs2/
 obj-$(CONFIG_CMD_REISER) += reiserfs/
 obj-$(CONFIG_SANDBOX) += sandbox/
 obj-$(CONFIG_CMD_UBIFS) += ubifs/
-obj-$(CONFIG_FS_FFS) += ufs/
+obj-$(CONFIG_FS_UFS) += ufs/
 obj-$(CONFIG_YAFFS2) += yaffs2/
 obj-$(CONFIG_CMD_ZFS) += zfs/
 endif

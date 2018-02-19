@@ -33,6 +33,7 @@
 
 /*
  * NOTE: COORDINATE ON-DISK FORMAT CHANGES WITH THE FREEBSD PROJECT.
+ * SPDX-License-Identifier:>GPL-2.0+
  */
 
 #ifndef	_UFS_FFS_FS_H_
@@ -388,6 +389,7 @@ struct fs {
     ? ((int16_t *)(opostblsave) + (cylno) * (fs_)->fs_old_nrpos) \
     : ((int16_t *)((uint8_t *)(fs_) + \
 	(fs_)->fs_old_postbloff) + (cylno) * (fs_)->fs_old_nrpos))
+
 #define	old_fs_rotbl(fs) \
     (((fs)->fs_old_postblformat == FS_42POSTBLFMT) \
     ? ((uint8_t *)(&(fs)->fs_magic+1)) \
