@@ -250,6 +250,7 @@ lsfree(lsentry_t *names) {
 int
 read_inode(ino32_t inumber, struct open_file *f)
 {
+    int64_t version = get_ufs_version(f);
     struct file *fp = (struct file *)f->f_fsdata;
     FS *fs = fp->f_fs;
     char *buf;
@@ -292,7 +293,9 @@ read_inode(ino32_t inumber, struct open_file *f)
     }
     fp->f_di = *dip;
 #else
-    fp->f_di = ((struct ufs_dinode *)buf)[ino_to_fsbo(fs, inumber)];
+    if (version == FS_UFS1_MAGIC) 
+    	fp->f_di.v1 = ((struct ufs1_dinode *)buf)[ino_to_fsbo(fs, inumber)];
+    fp->f_di.v2 = ((struct ufs2_dinode *)buf)[ino_to_fsbo(fs, inumber)];
 #endif
 
     /*
@@ -310,6 +313,7 @@ read_inode(ino32_t inumber, struct open_file *f)
 int
 block_map(struct open_file *f, indp_t file_block, indp_t *disk_block_p)
 {
+    int64_t version = get_ufs_version(f);
     struct file *fp = (struct file *)f->f_fsdata;
     FS *fs = fp->f_fs;
     uint level;
@@ -343,7 +347,7 @@ block_map(struct open_file *f, indp_t file_block, indp_t *disk_block_p)
 
     if (file_block < UFS_NDADDR) {
         /* Direct block. */
-        *disk_block_p = fp->f_di.di_db[file_block];
+        *disk_block_p = (version == FS_UFS1_MAGIC) ? fp->f_di.v1.di_db[file_block] : fp->f_di.v2.di_db[file_block];
         return 0;
     }
 
@@ -365,7 +369,7 @@ block_map(struct open_file *f, indp_t file_block, indp_t *disk_block_p)
         file_block -= (indp_t)1 << level;
     }
 
-    ind_block_num = fp->f_di.di_ib[level / fp->f_nishift - 1];
+    ind_block_num = (version == FS_UFS1_MAGIC) ? fp->f_di.v1.di_ib[level / fp->f_nishift - 1] :  fp->f_di.v2.di_ib[level / fp->f_nishift - 1];
 
     for (;;) {
         level -= fp->f_nishift;
@@ -411,6 +415,7 @@ block_map(struct open_file *f, indp_t file_block, indp_t *disk_block_p)
 int
 buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)
 {
+    int64_t version = get_ufs_version(f);
     struct file *fp = (struct file *)f->f_fsdata;
     FS *fs = fp->f_fs;
     long off;
@@ -421,9 +426,11 @@ buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)
     off = ufs_blkoff(fs, fp->f_seekp);
     file_block = ufs_lblkno(fs, fp->f_seekp);
 #ifdef LIBSA_LFS
-    block_size = dblksize(fs, &fp->f_di, file_block);
+    block_size = (version == FS_UFS1_MAGIC) ? dblksize(fs, &fp->f_di.v1, file_block) :  
+					    dblksize(fs, &fp->f_di.v2, file_block);
 #else
-    block_size = ffs_sblksize(fs, (int64_t)fp->f_di.di_size, file_block);
+    block_size = (version == FS_UFS1_MAGIC) ? ffs_sblksize(fs, (int64_t)fp->f_di.v1.di_size, file_block) :
+						ffs_sblksize(fs, (int64_t)fp->f_di.v2.di_size, file_block);
 #endif
 
     if (file_block != fp->f_buf_blkno) {
@@ -458,8 +465,9 @@ buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)
     /*
      * But truncate buffer at end of file.
      */
-    if (*size_p > fp->f_di.di_size - fp->f_seekp)
-        *size_p = fp->f_di.di_size - fp->f_seekp;
+   int32_t sum = (version == FS_UFS1_MAGIC) ? (fp->f_di.v1.di_size - fp->f_seekp) : (fp->f_di.v2.di_size - fp->f_seekp); 
+    if (*size_p > sum)
+        *size_p = (version == FS_UFS1_MAGIC) ? (fp->f_di.v1.di_size - fp->f_seekp) : (fp->f_di.v2.di_size - fp->f_seekp);
 
     return 0;
 }
@@ -472,6 +480,7 @@ int
 search_directory(const char *name, int length, struct open_file *f,
     ino32_t *inumber_p)
 {
+    int64_t version = get_ufs_version(f);
     struct file *fp = (struct file *)f->f_fsdata;
     struct direct *dp;
     struct direct *edp;
@@ -481,7 +490,8 @@ search_directory(const char *name, int length, struct open_file *f,
     int rc;
 
     fp->f_seekp = 0;
-    while (fp->f_seekp < (off_t)fp->f_di.di_size) {
+    int16_t di_size = (version == FS_UFS1_MAGIC) ? (off_t)fp->f_di.v1.di_size : (off_t)fp->f_di.v2.di_size;
+    while (fp->f_seekp < di_size) {
         rc = buf_read_file(f, &buf, &buf_size);
         if (rc)
             return rc;
@@ -512,7 +522,6 @@ search_directory(const char *name, int length, struct open_file *f,
 }
 
 
-#ifdef LIBSA_FFSv1
 /*
  * Sanity checks for old file systems.
  *
@@ -523,7 +532,6 @@ void
 ffs_oldfscompat(FS *fs)
 {
 
-#ifdef COMPAT_UFS
     /*
      * Newer Solaris versions have a slightly incompatible
      * superblock - so always calculate this values on the fly, which
@@ -537,13 +545,9 @@ ffs_oldfscompat(FS *fs)
         fs->fs_qbmask = ~fs->fs_bmask;
         fs->fs_qfmask = ~fs->fs_fmask;
     }
-#endif
-#endif /* LIBSA_FFSv1 */
-
-#ifdef LIBSA_FFSv2
+}
 
 daddr_t sblock_try[] = SBLOCKSEARCH;
-
 int
 ffs_find_superblock(struct open_file *f, FS *fs)
 {
@@ -564,7 +568,14 @@ ffs_find_superblock(struct open_file *f, FS *fs)
     return EINVAL;
 }
 
-#endif /* LIBSA_FFSv2 */
-
-
-
+int64_t get_ufs_version(struct open_file *f)
+{
+    struct file *fp = (struct file *)f->f_fsdata;
+    
+    FS *fs = fp->f_fs;
+    
+    if (fs->fs_magic == FS_UFS1_MAGIC)
+	return FS_UFS1_MAGIC;
+    
+    return FS_UFS2_MAGIC;
+}

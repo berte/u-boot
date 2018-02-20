@@ -1,8 +1,6 @@
-/*	$NetBSD: ufs.c,v 1.73 2015/09/01 06:12:04 dholland Exp $	*/
-
-/*-
+ /*
  * Copyright (c) 1993
- *	The Regents of the University of California.  All rights reserved.
+ * The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * The Mach Operating System project at Carnegie-Mellon University.
@@ -62,7 +60,7 @@
  * UFS/FFS filesystem ported to u-boot by
  * berte <behzaterte at yandex.com>
  *
- * SPDX-License-Identifier:>GPL-2.0+
+ * SPDX-License-Identifier: GPL-2.0+ BSD-3-Clause 
  */
 
 #include <common.h>
@@ -92,7 +90,9 @@ ffs_seek(struct open_file *f, off_t offset, int where)
 	    fp->f_seekp += offset;
 	    break;
 	case SEEK_END:
-	    fp->f_seekp = fp->f_di.di_size - offset;
+	    if (get_ufs_version(f) == FS_UFS1_MAGIC)
+		fp->f_seekp = fp->f_di.v1.di_size - offset;
+	    fp->f_seekp = fp->f_di.v2.di_size - offset;
 	    break;
 	default:
 	    return -1;
@@ -126,7 +126,7 @@ void ffs_ls(struct open_file *f, const char *pattern)
     lsentry_t *names = NULL;
 
     fp->f_seekp = 0;
-    while (fp->f_seekp < (off_t)fp->f_di.di_size) {
+    while (fp->f_seekp < (off_t)fp->f_di.v1.di_size) {
         struct direct  *dp, *edp;
         int rc = buf_read_file(f, &buf, &buf_size);
         if (rc)
@@ -178,7 +178,7 @@ ffs_read(struct open_file *f, void *start, size_t size, size_t *resid)
     char *addr = start;
 
     while (size != 0) {
-        if (fp->f_seekp >= (off_t)fp->f_di.di_size)
+        if (fp->f_seekp >= (off_t)fp->f_di.v1.di_size)
             break;
 
         rc = buf_read_file(f, &buf, &buf_size);
@@ -210,7 +210,8 @@ ffs_open(const char *path, struct open_file *f)
     ino32_t inumber;
     struct file *fp;
     FS *fs;
-    int rc;
+    int rc, flag;
+    int64_t version;
 #ifndef LIBSA_NO_FS_SYMLINK
     ino32_t parent_inumber;
     int nlinks = 0;
@@ -227,6 +228,7 @@ ffs_open(const char *path, struct open_file *f)
     fs = alloc(SBLOCKSIZE);
     fp->f_fs = fs;
     twiddle();
+    version = get_ufs_version(f);
 
 #ifdef LIBSA_FFSv2
     rc = ffs_find_superblock(f, fs);
@@ -263,9 +265,8 @@ ffs_open(const char *path, struct open_file *f)
 #endif
 #endif
 
-#ifdef LIBSA_FFSv1
-    ffs_oldfscompat(fs);
-#endif
+    if (version == FS_UFS1_MAGIC)
+	ffs_oldfscompat(fs);
 
     if (fs->fs_bsize > MAXBSIZE ||
         (size_t)fs->fs_bsize < sizeof(FS)) {
@@ -321,10 +322,15 @@ ffs_open(const char *path, struct open_file *f)
         /*
          * Check that current node is a directory.
          */
-        if ((fp->f_di.di_mode & IFMT) != IFDIR) {
-            rc = ENOTDIR;
-            goto out;
-        }
+	if (version == FS_UFS1_MAGIC) /*ffs version check*/
+	    flag = (fp->f_di.v1.di_mode & IFMT) != IFDIR;
+	
+	flag = (fp->f_di.v2.di_mode & IFMT) != IFDIR;
+	    
+	if (flag) {
+		rc = ENOTDIR;
+		goto out;
+	    }
 
         /*
          * Get next component of path name.
@@ -355,8 +361,13 @@ ffs_open(const char *path, struct open_file *f)
         /*
          * Check for symbolic link.
          */
-        if ((fp->f_di.di_mode & IFMT) == IFLNK) {
-            int link_len = fp->f_di.di_size;
+	if (version == FS_UFS1_MAGIC) /*ffs version check*/
+	    flag = (fp->f_di.v1.di_mode & IFMT) != IFLNK;
+	
+	flag = (fp->f_di.v2.di_mode & IFMT) != IFLNK;
+        
+	if (flag) {
+            int link_len =  (version == FS_UFS1_MAGIC) ? fp->f_di.v1.di_size : fp->f_di.v2.di_size;
             int len;
 
             len = strlen(cp);
@@ -370,7 +381,9 @@ ffs_open(const char *path, struct open_file *f)
             memmove(&namebuf[link_len], cp, len + 1);
 
             if (link_len < fs->fs_maxsymlinklen) {
-                memcpy(namebuf, fp->f_di.di_db, link_len);
+		(version == FS_UFS1_MAGIC) ?
+		    memcpy(namebuf, fp->f_di.v1.di_db, link_len) : 
+		    memcpy(namebuf, fp->f_di.v2.di_db, link_len);
             } else {
                 /*
                  * Read file for symbolic link
@@ -441,14 +454,15 @@ out:
 int
 ffs_stat(struct open_file *f, struct stat *sb)
 {
+    int64_t version = get_ufs_version(f);
     struct file *fp = (struct file *)f->f_fsdata;
     
     /* only important stuff */
     memset(sb, 0, sizeof *sb);
-    sb->st_mode = fp->f_di.di_mode;
-    sb->st_uid = fp->f_di.di_uid;
-    sb->st_gid = fp->f_di.di_gid;
-    sb->st_size = fp->f_di.di_size;
+    sb->st_mode = (version == FS_UFS1_MAGIC) ? fp->f_di.v1.di_mode : fp->f_di.v2.di_mode;
+    sb->st_uid = (version == FS_UFS1_MAGIC) ? fp->f_di.v1.di_uid : fp->f_di.v2.di_uid;
+    sb->st_gid = (version == FS_UFS1_MAGIC) ? fp->f_di.v1.di_gid : fp->f_di.v2.di_gid;
+    sb->st_size = (version == FS_UFS1_MAGIC)? fp->f_di.v1.di_size : fp->f_di.v2.di_size;
     return 0;
 }
 
