@@ -49,6 +49,11 @@
  * NOTE: COORDINATE ON-DISK FORMAT CHANGES WITH THE FREEBSD PROJECT.
  */
 
+/* Ported by berte <behzaterte at yandex.com>
+ * SPDX-License-Identifier:     BSD 2-Clause License
+ * 
+ */
+
 #ifndef	_UFS_UFS_DINODE_H_
 #define	_UFS_UFS_DINODE_H_
 

@@ -60,7 +60,7 @@
  * UFS/FFS filesystem ported to u-boot by
  * berte <behzaterte at yandex.com>
  *
- * SPDX-License-Identifier:>GPL-2.0+
+ * SPDX-License-Identifier:     BSD 2-Clause License
  */
 
 
