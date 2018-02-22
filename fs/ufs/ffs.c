@@ -322,10 +322,12 @@ ffs_open(const char *path, struct open_file *f)
         /*
          * Check that current node is a directory.
          */
-	if (version == FS_UFS1_MAGIC) /*ffs version check*/
+	if (version == FS_UFS1_MAGIC) {/*ffs version check*/
 	    flag = (fp->f_di.v1.di_mode & IFMT) != IFDIR;
-	
-	flag = (fp->f_di.v2.di_mode & IFMT) != IFDIR;
+	}
+	else {
+	    flag = (fp->f_di.v2.di_mode & IFMT) != IFDIR;
+	}
 	    
 	if (flag) {
 		rc = ENOTDIR;
@@ -361,10 +363,12 @@ ffs_open(const char *path, struct open_file *f)
         /*
          * Check for symbolic link.
          */
-	if (version == FS_UFS1_MAGIC) /*ffs version check*/
+	if (version == FS_UFS1_MAGIC) {/*ffs version check*/
 	    flag = (fp->f_di.v1.di_mode & IFMT) != IFLNK;
-	
-	flag = (fp->f_di.v2.di_mode & IFMT) != IFLNK;
+	}
+	else {
+    	    flag = (fp->f_di.v2.di_mode & IFMT) != IFLNK;
+	}
         
 	if (flag) {
             int link_len =  (version == FS_UFS1_MAGIC) ? fp->f_di.v1.di_size : fp->f_di.v2.di_size;
