@@ -1,8 +1,8 @@
 /*
  *
- *
- *
- *
+ * UFS/FFSv1/FFSv2 filesystem support
+ * Created by berte <behzaterte at yandex.com>
+ * SPDX-License-Identifier:   BSD 2-Clause License
  */
 
 #ifndef __UFS_H__

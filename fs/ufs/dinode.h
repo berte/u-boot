@@ -1,5 +1,3 @@
-/*	$NetBSD: dinode.h,v 1.24 2013/06/09 17:55:46 dholland Exp $	*/
-
 /*
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.

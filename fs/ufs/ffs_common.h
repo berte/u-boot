@@ -72,7 +72,7 @@
 #define UFS_NDADDR 12      /* Direct addresses in inode. */
 #define UFS_NIADDR 3       /* Indirect addresses in inode. */
 
-#define indp_t      int32_t
+/*#define indp_t      int32_t*/
 #define indp_t      int64_t
 
 #define FS_MAGIC        	0x070162/*LFS_MAGIC*/
@@ -212,6 +212,11 @@
 
 #define TWIDDLE_CHARS   "|/-\\"
 
+extern int ndevs;       /* number of elements in devsw[] */
+typedef uint32_t ino32_t;
+typedef struct fs FS;
+typedef struct _ufs_dinode ufs_dinode;
+
 struct ufs1_dinode {
     uint16_t    di_mode;    /*   0: IFMT, permissions; see below. */
     int16_t     di_nlink;   /*   2: File link count. */
@@ -266,15 +271,10 @@ struct _ufs_dinode
     struct ufs2_dinode v2;
 };
 
-extern int ndevs;       /* number of elements in devsw[] */
-typedef uint32_t ino32_t;
-typedef struct fs FS;
-typedef struct _ufs_dinode ufs_dinode;
-
 struct file {
      off_t    f_seekp;    		/* seek pointer */
      FS      *f_fs;      		/* pointer to super-block */
-     ufs_dinode f_di;       	/* copy of on-disk inode */
+     ufs_dinode f_di;       		/* copy of on-disk inode */
      uint    f_nishift;  		/* for blocks in indirect block */
      indp_t  f_ind_cache_block;
      indp_t  f_ind_cache[IND_CACHE_SZ];
@@ -350,6 +350,5 @@ int buf_read_file(struct open_file *, char **, size_t *);
 int search_directory(const char *, int, struct open_file *, ino32_t *);
 void ffs_oldfscompat(FS *);
 int ffs_find_superblock(struct open_file *, FS *);
-
 int64_t get_ufs_version(struct open_file*);
 #endif /* __FFS_COMMON_H__  */

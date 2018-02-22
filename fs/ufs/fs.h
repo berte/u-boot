@@ -1,5 +1,3 @@
-/*	$NetBSD: fs.h,v 1.65 2013/09/03 02:24:01 dholland Exp $	*/
-
 /*
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.

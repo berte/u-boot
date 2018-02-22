@@ -293,9 +293,12 @@ read_inode(ino32_t inumber, struct open_file *f)
     }
     fp->f_di = *dip;
 #else
-    if (version == FS_UFS1_MAGIC) 
+    if (version == FS_UFS1_MAGIC) {
     	fp->f_di.v1 = ((struct ufs1_dinode *)buf)[ino_to_fsbo(fs, inumber)];
-    fp->f_di.v2 = ((struct ufs2_dinode *)buf)[ino_to_fsbo(fs, inumber)];
+    }
+    else {
+	fp->f_di.v2 = ((struct ufs2_dinode *)buf)[ino_to_fsbo(fs, inumber)];
+    }
 #endif
 
     /*
