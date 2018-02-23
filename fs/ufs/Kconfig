@@ -9,5 +9,6 @@ config FS_UFS_WRITE
     depends on FS_UFS
     bool "Enable UFS/FFSv1/FFSv2 filesystem write support(NOT IMPLEMENTED, DO NOT USE)"
     help
-    This provides support for writing data to the ufs and variant filesystem.
-    NOT IMLEMENTED, PLEASE DO NOT USE THIS.
+    This provides support for creating and writing new files to an                                                                                                                    │
+    existing UFS/FFSv1/FFSv2 filesystem partition.
+    NOT IMPLEMENTED, PLEASE DO NOT USE THIS.

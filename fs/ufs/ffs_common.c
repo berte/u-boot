@@ -65,107 +65,16 @@
 
 
 #include <common.h>
+#include <stdlib.h>
 #include "ffs_common.h"
 
-char  twiddle_toggle;
-struct fl {
+daddr_t ffs_sblock_try[] = SBLOCKSEARCH;
+
+struct ffs_fl {
     unsigned int    size;
     struct fl   *next;
 } *freelist;
 
-void
-twiddle(void)
-{
-    static int pos;
-
-    if (!twiddle_toggle) {
-        /*putchar(TWIDDLE_CHARS[pos++ & 3]);
-        putchar('\b');*/
-        putc(TWIDDLE_CHARS[pos++ & 3]);
-        putc('\b');
-    }
-
-}
-
-void 
-dealloc(void *ptr, size_t size)
-{
-    struct fl *f = (struct fl *)(void *) ((char *)(void *)ptr - sizeof(unsigned int));
-#ifdef DEBUG
-    if (size > (size_t)f->size) {
-        printf("dealloc %zu bytes @%lx, should be <=%u\n",
-            size, (u_long)ptr, f->size);
-    }
-
-    if (ptr < (void *)HEAP_START)
-        printf("dealloc: %lx before start of heap.\n", (u_long)ptr);
-
-#ifdef HEAP_LIMIT
-    if (ptr > (void *)HEAP_LIMIT)
-        printf("dealloc: %lx beyond end of heap.\n", (u_long)ptr);
-#endif
-#endif /* DEBUG */
-    /* put into freelist */
-    f->next = freelist;
-    freelist = f;
-}
-
-static char *top = NULL;
-
-void *
-alloc(size_t size)
-{
-    struct fl **f = &freelist, **bestf = NULL;
-    unsigned int bestsize = 0xffffffff; /* greater than any real size */
-    char *help = NULL;
-    int failed;
-
-    /* scan freelist */
-    while (*f) {
-        if ((size_t)(*f)->size >= size) {
-            if ((size_t)(*f)->size == size) /* exact match */
-                goto found;
-
-            if ((*f)->size < bestsize) {
-                /* keep best fit */
-                bestf = f;
-                bestsize = (*f)->size;
-            }
-        }
-        f = &((*f)->next);
-    }
-
-    /* no match in freelist if bestsize unchanged */
-    failed = (bestsize == 0xffffffff);
-
-    if (failed) { /* nothing found */
-        /*
-         * allocate from heap, keep chunk len in
-         * first word
-         */
-        //help = top;
-
-        /* make _sure_ the region can hold a struct fl. */
-        if (size < sizeof (struct fl *))
-            size = sizeof (struct fl *);
-        top += sizeof(unsigned int) + size;
-#ifdef HEAP_LIMIT
-        if (top > (char *)HEAP_LIMIT)
-            panic("heap full (%p+%zu)", help, size);
-#endif
-        *(unsigned int *)(void *)help = (unsigned int)(size);
-        return help + sizeof(unsigned int);
-    }
-
-    /* we take the best fit */
-    f = bestf;
-
-found:
-    /* remove from freelist */
-    help = (char *)(void *)*f;
-    *f = (*f)->next;
-    return help + sizeof(unsigned int);
-}
 
 int 
 fnmatch(const char *fname, const char *pattern)
@@ -204,9 +113,9 @@ lsadd(lsentry_t **names, const char *pattern, const char *name, size_t namelen,
     if (pattern && !fnmatch(name, pattern))
         return;
 
-    n = alloc(sizeof *n + namelen);
+    n = malloc(sizeof *n + namelen);
     if (!n) {
-        printf("%d: %.*s (%s)\n", ino, (int)namelen, name, type);
+        debug("%d: %.*s (%s)\n", ino, (int)namelen, name, type);
         return;
     }
 
@@ -226,12 +135,12 @@ lsadd(lsentry_t **names, const char *pattern, const char *name, size_t namelen,
 void
 lsprint(lsentry_t *names) {
     if (!names) {
-        printf("not found\n");
+        debug("not found\n");
         return;
     }
     do {
         lsentry_t *n = names;
-        printf("%d: %s (%s)\n", n->e_ino, n->e_name, n->e_type);
+        debug("%d: %s (%s)\n", n->e_ino, n->e_name, n->e_type);
         names = n->e_next;
     } while (names);
 }
@@ -243,7 +152,7 @@ lsfree(lsentry_t *names) {
     do {
         lsentry_t *n = names;
         names = n->e_next;
-        dealloc(n, 0);
+        free(n);
     } while (names);
 }
 
@@ -275,8 +184,8 @@ read_inode(ino32_t inumber, struct open_file *f)
      * Read inode and save it.
      */
     buf = fp->f_buf;
-    twiddle();
-    /*rc = DEV_STRATEGY(f->f_dev)(f->f_devdata, F_READ,
+    /*twiddle();
+    rc = DEV_STRATEGY(f->f_dev)(f->f_devdata, F_READ,
         inode_sector, fs->fs_bsize, buf, &rsize);
     if (rc)
         return rc;*/
@@ -381,7 +290,7 @@ block_map(struct open_file *f, indp_t file_block, indp_t *disk_block_p)
             return 0;
         }
 
-        twiddle();
+        /*twiddle();*/
         /*
          * If we were feeling brave, we could work out the number
          * of the disk sector and read a single disk sector instead
@@ -446,8 +355,8 @@ buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)
             memset(fp->f_buf, 0, block_size);
             fp->f_buf_size = block_size;
         } else {
-            twiddle();
-            /*rc = DEV_STRATEGY(f->f_dev)(f->f_devdata, F_READ,
+            /*twiddle();
+            rc = DEV_STRATEGY(f->f_dev)(f->f_devdata, F_READ,
                 FSBTODB(fs, disk_block),
                 block_size, fp->f_buf, &fp->f_buf_size);
             if (rc)
@@ -550,18 +459,17 @@ ffs_oldfscompat(FS *fs)
     }
 }
 
-daddr_t sblock_try[] = SBLOCKSEARCH;
 int
 ffs_find_superblock(struct open_file *f, FS *fs)
 {
     int i;
 
-    for (i = 0; sblock_try[i] != -1; i++) {
+    for (i = 0; ffs_sblock_try[i] != -1; i++) {
         /*rc = DEV_STRATEGY(f->f_dev)(f->f_devdata, F_READ,
             sblock_try[i] / DEV_BSIZE, SBLOCKSIZE, fs, &buf_size);
         if (rc != 0 || buf_size != SBLOCKSIZE)
             return rc;*/
-        if (fs->fs_sblockloc != sblock_try[i])
+        if (fs->fs_sblockloc != ffs_sblock_try[i])
             /* an alternate superblock - try again */
             continue;
         if (fs->fs_magic == FS_UFS2_MAGIC) {

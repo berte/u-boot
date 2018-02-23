@@ -1467,9 +1467,13 @@ config CMD_ZFS
 	  See doc/README.zfs for more details.
 
 config CMD_UFS
-	bool "ffs command support"
+	bool "ffs - Access of UFS/FFSv1/FFSv2 filesystem"
 	help
-	  This provides commands for accessing a FFSv1/FFSv2 filesystem.
+	  This provides commands for accessing a UFS/FFSv1/FFSv2 filesystem.
+	  Three sub-commands are provided:
+	    ffsload - load a file
+	    ffsls - list files in a directory
+	    ffssize - determine a file's size
 
 endmenu
 

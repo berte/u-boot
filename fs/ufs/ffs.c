@@ -108,10 +108,10 @@ int ffs_close(struct open_file *f)
         return 0;
 
     if (fp->f_buf)
-        dealloc(fp->f_buf, fp->f_fs->fs_bsize);
+        free(fp->f_buf);
 
-    dealloc(fp->f_fs, SBLOCKSIZE);
-    dealloc(fp, sizeof(struct file));
+    free(fp->f_fs);
+    free(fp);
 
     return 0;
 }
@@ -155,7 +155,7 @@ void ffs_ls(struct open_file *f, const char *pattern)
                  * handle this case specially, if
                  * there were a pressing need...
                  */
-                printf("bad dir entry\n");
+                debug("bad dir entry\n");
                 goto out;
             }
             lsadd(&names, pattern, dp->d_name, strlen(dp->d_name),
@@ -220,14 +220,14 @@ ffs_open(const char *path, struct open_file *f)
 #endif
 
     /* allocate file system specific data structure */
-    fp = alloc(sizeof(struct file));
+    fp = malloc(sizeof(struct file));
     memset(fp, 0, sizeof(struct file));
     f->f_fsdata = (void *)fp;
 
     /* allocate space and read super block */
-    fs = alloc(SBLOCKSIZE);
+    fs = malloc(SBLOCKSIZE);
     fp->f_fs = fs;
-    twiddle();
+    /*twiddle();*/
     version = get_ufs_version(f);
 
 #ifdef LIBSA_FFSv2
@@ -400,8 +400,8 @@ ffs_open(const char *path, struct open_file *f)
                 if (rc)
                     goto out;
 
-                twiddle();
-                /*rc = DEV_STRATEGY(f->f_dev)(f->f_devdata,
+                /*twiddle();
+                rc = DEV_STRATEGY(f->f_dev)(f->f_devdata,
                     F_READ, FSBTODB(fs, disk_block),
                     fs->fs_bsize, buf, &buf_size);*/
                 if (rc)
@@ -515,7 +515,7 @@ void ufs_close(void)
     int ret = 0;
     ret = ffs_close(gFile);
 
-    printf("ffs_close return value is %d\n", ret);
+    debug("ffs_close return value is %d\n", ret);
 }
 
 int  ufs_exists(const char *filename)
